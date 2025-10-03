@@ -260,6 +260,11 @@ impl<Stream: Read + Write> WebSocket<Stream> {
         self.context.read(&mut self.socket)
     }
 
+    /// Attempts to read a message from a given stream without blocking.
+    pub fn try_read(&mut self) -> Result<Option<Message>> {
+        self.context.try_read(&mut self.socket)
+    }
+
     /// Writes and immediately flushes a message.
     /// Equivalent to calling [`write`](Self::write) then [`flush`](Self::flush).
     pub fn send(&mut self, message: Message) -> Result<()> {
@@ -476,6 +481,37 @@ impl WebSocketContext {
                 return Ok(message);
             }
         }
+    }
+
+    /// Attempt to Read a message from the provided stream, if possible.
+    ///
+    /// This function sends pong and close responses automatically.
+    /// However, it never blocks on write.
+    pub fn try_read<Stream>(&mut self, stream: &mut Stream) -> Result<Option<Message>>
+    where
+        Stream: Read + Write,
+    {
+        // Do not read from already closed connections.
+        self.state.check_not_terminated()?;
+
+        if self.additional_send.is_some() || self.unflushed_additional {
+            // Since we may get ping or close, we need to reply to the messages even during read.
+            match self.flush(stream) {
+                Ok(_) => {}
+                Err(Error::Io(err)) if err.kind() == io::ErrorKind::WouldBlock => {
+                    // If blocked continue reading, but try again later
+                    self.unflushed_additional = true;
+                }
+                Err(err) => return Err(err),
+            }
+        } else if self.role == Role::Server && !self.state.can_read() {
+            self.state = WebSocketState::Terminated;
+            return Err(Error::ConnectionClosed);
+        }
+
+        // If we get here, either write blocks or we have nothing to write.
+        // Thus if read blocks, just let it return WouldBlock.
+        self.read_message_frame(stream)
     }
 
     /// Write a message to the provided stream.
