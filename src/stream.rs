@@ -45,10 +45,27 @@ pub trait NonBlocking {
     fn set_non_blocking(&mut self, block: bool) -> IoResult<()>;
 }
 
+impl NonBlocking for TcpStream {
+    fn set_non_blocking(&mut self, block: bool) -> IoResult<()> {
+        TcpStream::set_nonblocking(self, block)
+    }
+}
+
 #[cfg(feature = "native-tls")]
 impl NonBlocking for TcpStream {
     fn set_non_blocking(&mut self, block: bool) -> IoResult<()> {
-        TcpStream::set_nonblocking(self, nodelay)
+        TcpStream::set_nonblocking(self, block)
+    }
+}
+#[cfg(feature = "__rustls-tls")]
+impl<S, SD, T> NonBlocking for StreamOwned<S, T>
+where
+    S: Deref<Target = rustls::ConnectionCommon<SD>>,
+    SD: rustls::SideData,
+    T: Read + Write + NoDelay,
+{
+    fn set_non_blocking(&mut self, nodelay: bool) -> IoResult<()> {
+        self.sock.set_non_blocking(nodelay)
     }
 }
 
