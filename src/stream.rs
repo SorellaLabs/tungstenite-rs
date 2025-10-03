@@ -42,11 +42,12 @@ impl NoDelay for TcpStream {
 /// Trait to switch TCP_NODELAY.
 pub trait NonBlocking {
     /// Set the TCP_NODELAY option to the given value.
-    fn set_non_blocking(&mut self, nodelay: bool) -> IoResult<()>;
+    fn set_non_blocking(&mut self, block: bool) -> IoResult<()>;
 }
 
+#[cfg(feature = "native-tls")]
 impl NonBlocking for TcpStream {
-    fn set_non_blocking(&mut self, nodelay: bool) -> IoResult<()> {
+    fn set_non_blocking(&mut self, block: bool) -> IoResult<()> {
         TcpStream::set_nonblocking(self, nodelay)
     }
 }
