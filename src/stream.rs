@@ -39,36 +39,6 @@ impl NoDelay for TcpStream {
     }
 }
 
-/// Trait to switch TCP_NODELAY.
-pub trait NonBlocking {
-    /// Set the TCP_NODELAY option to the given value.
-    fn set_non_blocking(&mut self, block: bool) -> IoResult<()>;
-}
-
-impl NonBlocking for TcpStream {
-    fn set_non_blocking(&mut self, block: bool) -> IoResult<()> {
-        TcpStream::set_nonblocking(self, block)
-    }
-}
-
-#[cfg(feature = "native-tls")]
-impl NonBlocking for TcpStream {
-    fn set_non_blocking(&mut self, block: bool) -> IoResult<()> {
-        TcpStream::set_nonblocking(self, block)
-    }
-}
-#[cfg(feature = "__rustls-tls")]
-impl<S, SD, T> NonBlocking for StreamOwned<S, T>
-where
-    S: Deref<Target = rustls::ConnectionCommon<SD>>,
-    SD: rustls::SideData,
-    T: Read + Write + NoDelay,
-{
-    fn set_non_blocking(&mut self, nodelay: bool) -> IoResult<()> {
-        self.sock.set_non_blocking(nodelay)
-    }
-}
-
 #[cfg(feature = "native-tls")]
 impl<S: Read + Write + NoDelay> NoDelay for TlsStream<S> {
     fn set_nodelay(&mut self, nodelay: bool) -> IoResult<()> {
@@ -85,6 +55,37 @@ where
 {
     fn set_nodelay(&mut self, nodelay: bool) -> IoResult<()> {
         self.sock.set_nodelay(nodelay)
+    }
+}
+
+/// Trait to switch TCP_NODELAY.
+pub trait NonBlocking {
+    /// Set the TCP_NODELAY option to the given value.
+    fn set_non_blocking(&mut self, block: bool) -> IoResult<()>;
+}
+
+impl NonBlocking for TcpStream {
+    fn set_non_blocking(&mut self, block: bool) -> IoResult<()> {
+        TcpStream::set_nonblocking(self, block)
+    }
+}
+
+#[cfg(feature = "native-tls")]
+impl NonBlocking for TcpStream {
+    fn set_non_blocking(&mut self, block: bool) -> IoResult<()> {
+        self.get_mut().set_non_blocking(block)
+    }
+}
+
+#[cfg(feature = "__rustls-tls")]
+impl<S, SD, T> NonBlocking for StreamOwned<S, T>
+where
+    S: Deref<Target = rustls::ConnectionCommon<SD>>,
+    SD: rustls::SideData,
+    T: Read + Write + NoDelay,
+{
+    fn set_non_blocking(&mut self, nodelay: bool) -> IoResult<()> {
+        self.sock.set_non_blocking(nodelay)
     }
 }
 
