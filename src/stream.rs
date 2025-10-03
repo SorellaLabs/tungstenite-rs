@@ -39,6 +39,18 @@ impl NoDelay for TcpStream {
     }
 }
 
+/// Trait to switch TCP_NODELAY.
+pub trait NonBlocking {
+    /// Set the TCP_NODELAY option to the given value.
+    fn set_non_blocking(&mut self, nodelay: bool) -> IoResult<()>;
+}
+
+impl NonBlocking for TcpStream {
+    fn set_non_blocking(&mut self, nodelay: bool) -> IoResult<()> {
+        TcpStream::set_nonblocking(self, nodelay)
+    }
+}
+
 #[cfg(feature = "native-tls")]
 impl<S: Read + Write + NoDelay> NoDelay for TlsStream<S> {
     fn set_nodelay(&mut self, nodelay: bool) -> IoResult<()> {
@@ -141,6 +153,18 @@ impl<S: Read + Write + NoDelay> NoDelay for MaybeTlsStream<S> {
             MaybeTlsStream::NativeTls(ref mut s) => s.set_nodelay(nodelay),
             #[cfg(feature = "__rustls-tls")]
             MaybeTlsStream::Rustls(ref mut s) => s.set_nodelay(nodelay),
+        }
+    }
+}
+
+impl<S: Read + Write + NonBlocking> NonBlocking for MaybeTlsStream<S> {
+    fn set_non_blocking(&mut self, block: bool) -> IoResult<()> {
+        match *self {
+            MaybeTlsStream::Plain(ref mut s) => s.set_non_blocking(block),
+            #[cfg(feature = "native-tls")]
+            MaybeTlsStream::NativeTls(ref mut s) => s.set_non_blocking(block),
+            #[cfg(feature = "__rustls-tls")]
+            MaybeTlsStream::Rustls(ref mut s) => s.set_non_blocking(block),
         }
     }
 }
