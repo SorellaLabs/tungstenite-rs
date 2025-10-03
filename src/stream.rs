@@ -71,7 +71,7 @@ impl NonBlocking for TcpStream {
 }
 
 #[cfg(feature = "native-tls")]
-impl NonBlocking for TcpStream {
+impl<S: Read + Write + NonBlocking> NonBlocking for TlsStream<S> {
     fn set_non_blocking(&mut self, block: bool) -> IoResult<()> {
         self.get_mut().set_non_blocking(block)
     }
